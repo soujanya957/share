@@ -1,5 +1,3 @@
-// LocomotionJoystickMode.cs
-
 using System;
 using UnityEngine;
 
@@ -16,8 +14,9 @@ public class LocomotionJoystickMode : NewControlMode
     [Header("References")]
     public GameObject cameraRig;
     public GameObject vignette; // Assign in Inspector if using vignette
-    public Transform headTransform;       // Assign main camera/head
-    public Transform controllerTransform; // Assign controller (left/right hand)
+    public Transform headTransform; // Assign main camera/head in Inspector
+    public Transform leftControllerTransform;  // Assign left controller in Inspector
+    public Transform rightControllerTransform; // Assign right controller in Inspector
 
     [Header("Locomotion Settings")]
     public float moveSpeed = 1.4f; // meters per second (human walk speed)
@@ -38,11 +37,9 @@ public class LocomotionJoystickMode : NewControlMode
 
     public override void ControlUpdate(SpotMode spot, ControllerModel model, ControllerModel _)
     {
-        // Vignette toggle
         if (vignette != null)
             vignette.SetActive(vignetteEnabled);
 
-        // Get thumbstick and trigger
         Vector2 joystick = model.isLeft
             ? OVRInput.Get(OVRInput.Axis2D.PrimaryThumbstick)
             : OVRInput.Get(OVRInput.Axis2D.SecondaryThumbstick);
@@ -51,7 +48,6 @@ public class LocomotionJoystickMode : NewControlMode
             ? OVRInput.Get(OVRInput.Axis1D.PrimaryIndexTrigger) > 0.5f
             : OVRInput.Get(OVRInput.Axis1D.SecondaryIndexTrigger) > 0.5f;
 
-        // Record initial Y when trigger is first held
         if (trigger && !isTriggerHeld)
         {
             initialY = cameraRig.transform.position.y;
@@ -59,7 +55,7 @@ public class LocomotionJoystickMode : NewControlMode
         }
         isTriggerHeld = trigger;
 
-        // Choose up vector for rotation based on dropdown
+        // [[ Rotation ]]
         Vector3 up;
         switch (rotationReference)
         {
@@ -67,6 +63,7 @@ public class LocomotionJoystickMode : NewControlMode
                 up = headTransform != null ? headTransform.up : Vector3.up;
                 break;
             case RotationReference.Controller:
+                Transform controllerTransform = model.isLeft ? leftControllerTransform : rightControllerTransform;
                 up = controllerTransform != null ? controllerTransform.up : Vector3.up;
                 break;
             default:
@@ -76,7 +73,6 @@ public class LocomotionJoystickMode : NewControlMode
 
         if (!trigger)
         {
-            // Head-based movement (forward/right of camera rig)
             if (joystick.magnitude > 0.1f)
             {
                 Vector3 move = cameraRig.transform.forward * joystick.y + cameraRig.transform.right * joystick.x;
@@ -86,19 +82,16 @@ public class LocomotionJoystickMode : NewControlMode
         }
         else
         {
-            // --- Snap or Smooth Turn ---
+            // [[ Rotation ]]
             if (useSnapTurn)
             {
-                // Snap left (edge detection)
                 if (joystick.x < -0.5f && prevJoyX >= -0.5f)
                     cameraRig.transform.RotateAround(cameraRig.transform.position, up, -snapAngle);
-                // Snap right (edge detection)
                 else if (joystick.x > 0.5f && prevJoyX <= 0.5f)
                     cameraRig.transform.RotateAround(cameraRig.transform.position, up, snapAngle);
             }
             else
             {
-                // Smooth turn
                 if (Mathf.Abs(joystick.x) > 0.1f)
                 {
                     float angle = smoothTurnSpeed * joystick.x * Time.deltaTime;
@@ -106,7 +99,7 @@ public class LocomotionJoystickMode : NewControlMode
                 }
             }
 
-            // --- Fly Up/Down ---
+            // [[ Fly ]]
             if (Mathf.Abs(joystick.y) > 0.1f)
             {
                 Debug.Log("Flying! joystick.y: " + joystick.y + " | flySpeed: " + flySpeed);
@@ -116,10 +109,8 @@ public class LocomotionJoystickMode : NewControlMode
             }
         }
 
-        // Store previous X for edge detection
         prevJoyX = joystick.x;
 
-        // --- Reset Y to initial height ---
         bool resetY = model.isLeft
             ? OVRInput.GetDown(OVRInput.Button.Three) // X button
             : OVRInput.GetDown(OVRInput.Button.One);  // A button
@@ -131,7 +122,7 @@ public class LocomotionJoystickMode : NewControlMode
             cameraRig.transform.position = pos;
         }
 
-        // --- Set Labels ---
+        // [[ Labels ]]
         // A/X, B/Y, start/menu, thumbstick, trigger, gripper
         string[] labels = new string[6];
         labels[0] = model.isLeft ? (hasInitialY ? "Reset Y (X)" : "") : (hasInitialY ? "Reset Y (A)" : "");
@@ -149,4 +140,3 @@ public class LocomotionJoystickMode : NewControlMode
         return "Locomotion (Joystick)";
     }
 }
-
