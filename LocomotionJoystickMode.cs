@@ -3,9 +3,9 @@ using UnityEngine;
 
 public enum RotationReference
 {
-    World,
-    Head,
-    Controller
+    World,      // Rotates around the global Y axis (tank-style)
+    Head,       // Rotates around the up direction of the head/camera
+    Controller  // Rotates around the up direction of the active controller
 }
 
 // One controller mode
@@ -13,27 +13,38 @@ public class LocomotionJoystickMode : NewControlMode
 {
     [Header("References")]
     public GameObject cameraRig;
-    public GameObject vignette; // Assign in Inspector if using vignette
-    public Transform headTransform; // Assign main camera/head in Inspector
-    public Transform leftControllerTransform;  // Assign left controller in Inspector
-    public Transform rightControllerTransform; // Assign right controller in Inspector
+    public GameObject vignette;
+    public Transform headTransform;
+    public Transform leftControllerTransform;
+    public Transform rightControllerTransform;
 
     [Header("Locomotion Settings")]
-    public float moveSpeed = 1.4f; // meters per second (human walk speed)
-    public float flySpeed = 1.4f;  // meters per second (vertical)
+    [Tooltip("Meters per second. 1.8 is a comfortable walk speed.")]
+    public float moveSpeed = 1.8f;
+    [Tooltip("Meters per second for vertical flying.")]
+    public float flySpeed = 1.4f;
     public bool useSnapTurn = true;
+
+    [Header("Rotation Settings")]
+    [Tooltip("Degrees per snap turn. 25 is comfortable for most users.")]
     public float snapAngle = 25f;
-    public float smoothTurnSpeed = 90f; // deg/sec
+    [Tooltip("Degrees per second for smooth turn. 50 is comfortable.")]
+    public float smoothTurnSpeed = 50f;
+    [Tooltip("Minimum stick deflection to trigger snap turn.")]
+    public float snapTurnDeadzone = 0.5f;
+    [Tooltip("Minimum seconds between snap turns.")]
+    public float snapTurnCooldown = 0.4f;
     public bool vignetteEnabled = false;
 
     [Header("Rotation Reference")]
     public RotationReference rotationReference = RotationReference.World;
 
-    // Internal state
+    // [[ Internal state ]]
     private float initialY;
     private bool hasInitialY = false;
     private bool isTriggerHeld = false;
     private float prevJoyX = 0f;
+    private float lastSnapTime = 0f;
 
     public override void ControlUpdate(SpotMode spot, ControllerModel model, ControllerModel _)
     {
@@ -85,10 +96,18 @@ public class LocomotionJoystickMode : NewControlMode
             // [[ Rotation ]]
             if (useSnapTurn)
             {
-                if (joystick.x < -0.5f && prevJoyX >= -0.5f)
+                // Snap left (edge detection + cooldown)
+                if (joystick.x < -snapTurnDeadzone && prevJoyX >= -snapTurnDeadzone && Time.time - lastSnapTime > snapTurnCooldown)
+                {
                     cameraRig.transform.RotateAround(cameraRig.transform.position, up, -snapAngle);
-                else if (joystick.x > 0.5f && prevJoyX <= 0.5f)
+                    lastSnapTime = Time.time;
+                }
+                // Snap right (edge detection + cooldown)
+                else if (joystick.x > snapTurnDeadzone && prevJoyX <= snapTurnDeadzone && Time.time - lastSnapTime > snapTurnCooldown)
+                {
                     cameraRig.transform.RotateAround(cameraRig.transform.position, up, snapAngle);
+                    lastSnapTime = Time.time;
+                }
             }
             else
             {
@@ -102,7 +121,6 @@ public class LocomotionJoystickMode : NewControlMode
             // [[ Fly ]]
             if (Mathf.Abs(joystick.y) > 0.1f)
             {
-                Debug.Log("Flying! joystick.y: " + joystick.y + " | flySpeed: " + flySpeed);
                 Vector3 pos = cameraRig.transform.position;
                 pos.y += joystick.y * flySpeed * Time.deltaTime;
                 cameraRig.transform.position = pos;
@@ -112,8 +130,8 @@ public class LocomotionJoystickMode : NewControlMode
         prevJoyX = joystick.x;
 
         bool resetY = model.isLeft
-            ? OVRInput.GetDown(OVRInput.Button.Three) // X button
-            : OVRInput.GetDown(OVRInput.Button.One);  // A button
+            ? OVRInput.GetDown(OVRInput.Button.Three)
+            : OVRInput.GetDown(OVRInput.Button.One);
 
         if (resetY && hasInitialY)
         {
