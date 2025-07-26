@@ -30,8 +30,8 @@ public class LocomotionJoystickMode : NewControlMode
     [Header("Rotation Settings")]
     [Tooltip("Degrees per snap turn. 25 is comfortable for most users.")]
     public float snapAngle = 25f;
-    [Tooltip("Degrees per second for smooth turn. 50 is comfortable.")]
-    public float smoothTurnSpeed = 50f;
+    [Tooltip("Degrees per second for smooth turn. 30 is comfortable.")]
+    public float smoothTurnSpeed = 30f; // Slower for comfort
     [Tooltip("Minimum stick deflection to trigger snap turn.")]
     public float snapTurnDeadzone = 0.5f;
     [Tooltip("Minimum seconds between snap turns.")]
@@ -156,7 +156,7 @@ public class LocomotionJoystickMode : NewControlMode
         labels[2] = "";
         labels[3] = grip ? "Fly" : (!trigger ? "Locomote" : (useSnapTurn ? "Snap Turn" : "Smooth Turn"));
         labels[4] = trigger ? "Rotate" : "Hold: Rotate";
-        labels[5] = grip ? "Fly" : "";
+        labels[5] = grip ? "Fly" : "Hold: Fly";
 
         model.SetLabels(labels);
     }
