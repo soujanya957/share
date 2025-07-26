@@ -31,7 +31,7 @@ public class LocomotionJoystickMode : NewControlMode
     [Tooltip("Degrees per snap turn. 25 is comfortable for most users.")]
     public float snapAngle = 25f;
     [Tooltip("Degrees per second for smooth turn. 30 is comfortable.")]
-    public float smoothTurnSpeed = 30f; // Slower for comfort
+    public float smoothTurnSpeed = 30f;
     [Tooltip("Minimum stick deflection to trigger snap turn.")]
     public float snapTurnDeadzone = 0.5f;
     [Tooltip("Minimum seconds between snap turns.")]
@@ -89,6 +89,7 @@ public class LocomotionJoystickMode : NewControlMode
                 break;
         }
 
+        // --- Movement/Rotation/Fly Logic ---
         if (grip)
         {
             // [[ Fly ]]
@@ -99,17 +100,7 @@ public class LocomotionJoystickMode : NewControlMode
                 cameraRig.transform.position = pos;
             }
         }
-        else if (!trigger)
-        {
-            // [[ Locomotion ]]
-            if (joystick.magnitude > 0.1f)
-            {
-                Vector3 move = cameraRig.transform.forward * joystick.y + cameraRig.transform.right * joystick.x;
-                move.y = 0;
-                cameraRig.transform.position += move * moveSpeed * Time.deltaTime;
-            }
-        }
-        else
+        else if (trigger)
         {
             // [[ Rotation ]]
             if (useSnapTurn)
@@ -134,6 +125,16 @@ public class LocomotionJoystickMode : NewControlMode
                 }
             }
         }
+        else
+        {
+            // [[ Locomotion ]]
+            if (joystick.magnitude > 0.1f)
+            {
+                Vector3 move = cameraRig.transform.forward * joystick.y + cameraRig.transform.right * joystick.x;
+                move.y = 0;
+                cameraRig.transform.position += move * moveSpeed * Time.deltaTime;
+            }
+        }
 
         prevJoyX = joystick.x;
 
@@ -151,11 +152,24 @@ public class LocomotionJoystickMode : NewControlMode
         // [[ Labels ]]
         // A/X, B/Y, start/menu, thumbstick, trigger, gripper
         string[] labels = new string[6];
+
+        // Reset Y label
         labels[0] = model.isLeft ? (hasInitialY ? "Reset Y (X)" : "") : (hasInitialY ? "Reset Y (A)" : "");
         labels[1] = "";
         labels[2] = "";
-        labels[3] = grip ? "Fly" : (!trigger ? "Locomote" : (useSnapTurn ? "Snap Turn" : "Smooth Turn"));
+
+        // Thumbstick label
+        if (grip)
+            labels[3] = "Fly";
+        else if (trigger)
+            labels[3] = "Rotate";
+        else
+            labels[3] = "Locomote";
+
+        // Trigger label
         labels[4] = trigger ? "Rotate" : "Hold: Rotate";
+
+        // Gripper label
         labels[5] = grip ? "Fly" : "Hold: Fly";
 
         model.SetLabels(labels);
