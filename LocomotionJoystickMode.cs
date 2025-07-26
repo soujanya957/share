@@ -21,9 +21,11 @@ public class LocomotionJoystickMode : NewControlMode
     [Header("Locomotion Settings")]
     [Tooltip("Meters per second. 1.8 is a comfortable walk speed.")]
     public float moveSpeed = 1.8f;
+    public bool useSnapTurn = true;
+
+    [Header("Flying Settings")]
     [Tooltip("Meters per second for vertical flying.")]
     public float flySpeed = 1.4f;
-    public bool useSnapTurn = true;
 
     [Header("Rotation Settings")]
     [Tooltip("Degrees per snap turn. 25 is comfortable for most users.")]
@@ -59,6 +61,11 @@ public class LocomotionJoystickMode : NewControlMode
             ? OVRInput.Get(OVRInput.Axis1D.PrimaryIndexTrigger) > 0.5f
             : OVRInput.Get(OVRInput.Axis1D.SecondaryIndexTrigger) > 0.5f;
 
+        // [[ Hand grip for flying ]]
+        bool grip = model.isLeft
+            ? OVRInput.Get(OVRInput.Axis1D.PrimaryHandTrigger) > 0.5f
+            : OVRInput.Get(OVRInput.Axis1D.SecondaryHandTrigger) > 0.5f;
+
         if (trigger && !isTriggerHeld)
         {
             initialY = cameraRig.transform.position.y;
@@ -82,8 +89,19 @@ public class LocomotionJoystickMode : NewControlMode
                 break;
         }
 
-        if (!trigger)
+        if (grip)
         {
+            // [[ Fly ]]
+            if (Mathf.Abs(joystick.y) > 0.1f)
+            {
+                Vector3 pos = cameraRig.transform.position;
+                pos.y += joystick.y * flySpeed * Time.deltaTime;
+                cameraRig.transform.position = pos;
+            }
+        }
+        else if (!trigger)
+        {
+            // [[ Locomotion ]]
             if (joystick.magnitude > 0.1f)
             {
                 Vector3 move = cameraRig.transform.forward * joystick.y + cameraRig.transform.right * joystick.x;
@@ -96,13 +114,11 @@ public class LocomotionJoystickMode : NewControlMode
             // [[ Rotation ]]
             if (useSnapTurn)
             {
-                // Snap left (edge detection + cooldown)
                 if (joystick.x < -snapTurnDeadzone && prevJoyX >= -snapTurnDeadzone && Time.time - lastSnapTime > snapTurnCooldown)
                 {
                     cameraRig.transform.RotateAround(cameraRig.transform.position, up, -snapAngle);
                     lastSnapTime = Time.time;
                 }
-                // Snap right (edge detection + cooldown)
                 else if (joystick.x > snapTurnDeadzone && prevJoyX <= snapTurnDeadzone && Time.time - lastSnapTime > snapTurnCooldown)
                 {
                     cameraRig.transform.RotateAround(cameraRig.transform.position, up, snapAngle);
@@ -116,14 +132,6 @@ public class LocomotionJoystickMode : NewControlMode
                     float angle = smoothTurnSpeed * joystick.x * Time.deltaTime;
                     cameraRig.transform.RotateAround(cameraRig.transform.position, up, angle);
                 }
-            }
-
-            // [[ Fly ]]
-            if (Mathf.Abs(joystick.y) > 0.1f)
-            {
-                Vector3 pos = cameraRig.transform.position;
-                pos.y += joystick.y * flySpeed * Time.deltaTime;
-                cameraRig.transform.position = pos;
             }
         }
 
@@ -146,9 +154,9 @@ public class LocomotionJoystickMode : NewControlMode
         labels[0] = model.isLeft ? (hasInitialY ? "Reset Y (X)" : "") : (hasInitialY ? "Reset Y (A)" : "");
         labels[1] = "";
         labels[2] = "";
-        labels[3] = !trigger ? "Locomote" : (useSnapTurn ? "Snap Turn / Fly" : "Smooth Turn / Fly");
-        labels[4] = trigger ? "Rotate/Fly" : "Hold: Rotate/Fly";
-        labels[5] = "";
+        labels[3] = grip ? "Fly" : (!trigger ? "Locomote" : (useSnapTurn ? "Snap Turn" : "Smooth Turn"));
+        labels[4] = trigger ? "Rotate" : "Hold: Rotate";
+        labels[5] = grip ? "Fly" : "";
 
         model.SetLabels(labels);
     }
