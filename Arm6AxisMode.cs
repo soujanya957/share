@@ -66,7 +66,7 @@ public class Arm6AxisMode : NewControlMode
             spot.SetGripperWorldPose(newGripperPosition, newGripperRotation);
         }
 
-        // Gripper open/close logic
+        // Gripper open/close logic (index trigger press)
         bool indexTrigger;
         if (model.isLeft)
             indexTrigger = OVRInput.GetDown(OVRInput.Button.PrimaryIndexTrigger);
