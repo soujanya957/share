@@ -1,6 +1,12 @@
 using System;
 using UnityEngine;
+using RosSharp.RosBridgeClient;
 
+/// <summary>
+/// Arm control mode for 6-axis movement with one controller.
+/// Supports Absolute and Relative control modes.
+/// Press B (right) or Y (left) to stow the arm.
+/// </summary>
 public class Arm6AxisMode : NewControlMode
 {
     public enum ArmControlMode
@@ -12,12 +18,15 @@ public class Arm6AxisMode : NewControlMode
     [Header("Arm Control Mode")]
     public ArmControlMode armControlMode = ArmControlMode.Absolute;
 
-    // For relative mode anchoring (per controller)
+    // For relative mode anchoring
     private Vector3 initialControllerPosition;
     private Quaternion initialControllerRotation;
     private Vector3 initialGripperPosition;
     private Quaternion initialGripperRotation;
     private bool wasInArmModeLastFrame = false;
+
+    // Reference to the StowArm publisher (assign in Inspector or find at runtime)
+    public StowArm stowArmPublisher;
 
     public override void ControlUpdate(SpotMode spot, ControllerModel model, ControllerModel _)
     {
@@ -29,12 +38,29 @@ public class Arm6AxisMode : NewControlMode
             "",
             spot.GetGripperOpen() ? "Close Gripper" : "Open Gripper",
             "",
-            ""
+            "B/Y: Stow"
         });
 
-        // Are we in arm mode? (always true for Arm6AxisMode)
-        bool inArmMode = true;
+        // --- Stow Arm Button ---
+        bool stowPressed = OVRInput.GetDown(OVRInput.Button.Two); // B (right) or Y (left)
+        if (stowPressed)
+        {
+            if (stowArmPublisher == null)
+            {
+                // Try to find the publisher if not assigned
+                stowArmPublisher = GameObject.FindObjectOfType<StowArm>();
+            }
+            if (stowArmPublisher != null)
+            {
+                stowArmPublisher.Stow();
+            }
+            else
+            {
+                Debug.LogWarning("StowArm publisher not found in scene!");
+            }
+        }
 
+        // === Arm Control ===
         if (armControlMode == ArmControlMode.Absolute)
         {
             // Snap gripper to controller
@@ -73,7 +99,7 @@ public class Arm6AxisMode : NewControlMode
             spot.SetGripperOpen(!spot.GetGripperOpen());
 
         // Update last frame state
-        wasInArmModeLastFrame = inArmMode;
+        wasInArmModeLastFrame = true;
     }
 
     public override string GetName()
