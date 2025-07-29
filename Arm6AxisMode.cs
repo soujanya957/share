@@ -1,10 +1,6 @@
 using System;
 using UnityEngine;
 
-/// <summary>
-/// Arm control mode for 6-axis movement with one controller.
-/// Supports Absolute and Relative control modes.
-/// </summary>
 public class Arm6AxisMode : NewControlMode
 {
     public enum ArmControlMode
@@ -16,12 +12,12 @@ public class Arm6AxisMode : NewControlMode
     [Header("Arm Control Mode")]
     public ArmControlMode armControlMode = ArmControlMode.Absolute;
 
-    // For relative mode anchoring
+    // For relative mode anchoring (per controller)
     private Vector3 initialControllerPosition;
     private Quaternion initialControllerRotation;
     private Vector3 initialGripperPosition;
     private Quaternion initialGripperRotation;
-    private bool isRelativeModeActive = false;
+    private bool wasInArmModeLastFrame = false;
 
     public override void ControlUpdate(SpotMode spot, ControllerModel model, ControllerModel _)
     {
@@ -36,23 +32,23 @@ public class Arm6AxisMode : NewControlMode
             ""
         });
 
-        // === Arm Control ===
+        // Are we in arm mode? (always true for Arm6AxisMode)
+        bool inArmMode = true;
+
         if (armControlMode == ArmControlMode.Absolute)
         {
             // Snap gripper to controller
             spot.SetGripperPos(model.anchor.transform);
-            isRelativeModeActive = false;
         }
         else // Relative mode
         {
-            if (!isRelativeModeActive)
+            // Only anchor when entering arm mode from a non-arm state
+            if (!wasInArmModeLastFrame)
             {
-                // Anchor initial poses on entering relative mode
                 initialControllerPosition = model.anchor.transform.position;
                 initialControllerRotation = model.anchor.transform.rotation;
                 initialGripperPosition = spot.GetGripperPos().position;
                 initialGripperRotation = spot.GetGripperPos().rotation;
-                isRelativeModeActive = true;
             }
 
             // Compute controller delta from anchor
@@ -75,6 +71,9 @@ public class Arm6AxisMode : NewControlMode
 
         if (indexTrigger)
             spot.SetGripperOpen(!spot.GetGripperOpen());
+
+        // Update last frame state
+        wasInArmModeLastFrame = inArmMode;
     }
 
     public override string GetName()
@@ -82,4 +81,3 @@ public class Arm6AxisMode : NewControlMode
         return "Arm (6 Axis)";
     }
 }
-
